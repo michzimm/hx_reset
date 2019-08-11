@@ -249,7 +249,7 @@ while True:
     else:
         print ("   <> Not a valid entry, please retry...")
 
-
+print ("\n")
 print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
 print ("\n")
 

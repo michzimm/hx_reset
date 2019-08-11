@@ -220,6 +220,19 @@ def vcenter_disconnect(vcenter_handle):
     connect.Disconnect(vcenter_handle)
 
 
+def intersight_connect(intersight_api_file):
+    with open(intersight_api_file, 'r') as api_file:
+        intersight_api_params = json.load(api_file)
+
+    # create an instance of the API class
+    api_instance = IntersightApiClient(
+        host=intersight_api_params['api_base_uri'],
+        private_key=intersight_api_params['api_private_key_file'],
+        api_key_id=intersight_api_params['api_key_id'],
+        )
+    return api_instance
+
+
 
 ##################
 # MAIN ###########
@@ -252,7 +265,7 @@ while True:
 print ("\n")
 
 if cluster_type in ("1"):
-    
+
     print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
     print ("\n")
 

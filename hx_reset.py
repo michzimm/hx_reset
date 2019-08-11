@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import os.path
+from os import path
 import sys
 import time
 import pexpect
@@ -15,6 +17,11 @@ from ucsmsdk.mometa.lsboot.LsbootUsbFlashStorageImage import LsbootUsbFlashStora
 from ucsmsdk.mometa.ls.LsPower import LsPower
 from pyVim import connect
 from pyVmomi import vim
+import json
+import intersight
+from intersight.intersight_api_client import IntersightApiClient
+from intersight.rest import ApiException
+from intersight.apis import hyperflex_cluster_profile_api
 
 
 ##################
@@ -230,8 +237,14 @@ def intersight_connect(intersight_api_file):
         private_key=intersight_api_params['api_private_key_file'],
         api_key_id=intersight_api_params['api_key_id'],
         )
-    return api_instance
-
+    hx_node_profile_handle = hyperflex_node_profile_api.HyperflexNodeProfileApi(api_instance)
+    try:
+        api_response = hx_node_profile_handle.hyperflex_node_profiles_get()
+        return api_instance
+    except ApiException:
+        print (Fore.RED+"There was a problem connecting to Intersight. Check internet connectivity and the API key file and then try again.")
+        print ("\n")
+        sys.exit()
 
 
 ##################
@@ -300,6 +313,18 @@ if cluster_type in ("1"):
     ucs_disconnect(ucs_handle)
     print ("\n")
 
+
+if cluster_type in ("2"):
+
+    print (Style.BRIGHT+Fore.WHITE+"Gathering Intersight API Details..."+Style.RESET_ALL)
+    print ("\n")
+
+    while True:
+        intersight_api_file = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the name of the API key file: "+Style.RESET_ALL)
+        if path.exists(intersight_api_file):
+            api_instance = intersight_connect(intersight_api_file)
+        else:
+            print ("     <> Unable to located provide API key file. please retry...")
 
 print (Style.BRIGHT+Fore.WHITE+"Gathering vCenter Details..."+Style.RESET_ALL)
 print ("\n")

@@ -250,39 +250,41 @@ while True:
         print ("   <> Not a valid entry, please retry...")
 
 print ("\n")
-print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
-print ("\n")
 
-while True:
-    ucsm_ip = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager IP address: "+Style.RESET_ALL)
-    ucsm_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager username: "+Style.RESET_ALL)
-    ucsm_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager password: "+Style.RESET_ALL)
-    try:
-        ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
-        if ucs_handle:
-            print ("   <> Successfully connected to UCS Manager.")
+if cluster_type in ("1"):
+    print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
+    print ("\n")
+
+    while True:
+        ucsm_ip = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager IP address: "+Style.RESET_ALL)
+        ucsm_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager username: "+Style.RESET_ALL)
+        ucsm_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Manager password: "+Style.RESET_ALL)
+        try:
+            ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
+            if ucs_handle:
+                print ("   <> Successfully connected to UCS Manager.")
+                break
+        except:
+            print ("   <> Unable to connect to UCS Mananger with the provided details, please retry...")
+
+    while True:
+        org_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Org associated with the HyperFlex cluster: "+Style.RESET_ALL)
+        if org_exists(ucs_handle, org_name):
+            print ("   <> Successfully found UCS Org.")
             break
-    except:
-        print ("   <> Unable to connect to UCS Mananger with the provided details, please retry...")
+        else:
+            print ("   <> Provided UCS Org does not exist, please retry...")
 
-while True:
-    org_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Org associated with the HyperFlex cluster: "+Style.RESET_ALL)
-    if org_exists(ucs_handle, org_name):
-        print ("   <> Successfully found UCS Org.")
-        break
-    else:
-        print ("   <> Provided UCS Org does not exist, please retry...")
+    while True:
+        vmedia_policy_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS vMedia policy name to be used for re-imaging the HyperFlex nodes: "+Style.RESET_ALL)
+        if vmedia_policy_exists(ucs_handle, vmedia_policy_name):
+            print ("   <> Successfully found vMedia policy.")
+            break
+        else:
+            print ("   <> Provided UCS vMedia policy does not exist, please retry...")
 
-while True:
-    vmedia_policy_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS vMedia policy name to be used for re-imaging the HyperFlex nodes: "+Style.RESET_ALL)
-    if vmedia_policy_exists(ucs_handle, vmedia_policy_name):
-        print ("   <> Successfully found vMedia policy.")
-        break
-    else:
-        print ("   <> Provided UCS vMedia policy does not exist, please retry...")
-
-ucs_disconnect(ucs_handle)
-print ("\n")
+    ucs_disconnect(ucs_handle)
+    print ("\n")
 
 
 print (Style.BRIGHT+Fore.WHITE+"Gathering vCenter Details..."+Style.RESET_ALL)

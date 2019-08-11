@@ -238,12 +238,11 @@ print ("\n")
 while True:
 
     print (Style.BRIGHT+Fore.WHITE+"Choose the number that best describes your HyperFlex cluster:"+Style.RESET_ALL)
-
+    print ("\n")
     print ("     1. Standard HyperFlex with Fabric Interconnects")
     print ("     2. HyperFlex Edge with Intersight")
     print ("     3. HyperFlex Edge without Intersight")
     print ("\n")
-
     cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"Selection: "+Style.RESET_ALL)
     if cluster_type in ("1","2","3"):
         break

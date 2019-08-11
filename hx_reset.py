@@ -252,6 +252,7 @@ while True:
 print ("\n")
 
 if cluster_type in ("1"):
+    
     print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
     print ("\n")
 

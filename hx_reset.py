@@ -15,16 +15,6 @@ from ucsmsdk.mometa.lsboot.LsbootUsbFlashStorageImage import LsbootUsbFlashStora
 from ucsmsdk.mometa.ls.LsPower import LsPower
 from pyVim import connect
 from pyVmomi import vim
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
-#ucsm_ip = "10.2.14.9"
-#ucsm_user = "admin"
-#ucsm_pass = "Hyp3rFlex123!"
-#org_name = "hxcluster"
-#vmedia_policy_name = "Esxi-6.5.2.2"
 
 
 ##################
@@ -243,6 +233,22 @@ print ("\n")
 
 print (Style.BRIGHT+Fore.GREEN+"TASK 1: Get Environment Details"+Style.RESET_ALL)
 print ("\n")
+
+
+while True:
+
+    print (Style.BRIGHT+Fore.WHITE+"Choose the number that best describes your HyperFlex cluster:"+Style.RESET_ALL)
+    print ("\n")
+
+    print ("     1. Standard HyperFlex with Fabric Interconnects")
+    print ("     2. HyperFlex Edge with Intersight")
+    print ("     3. HyperFlex Edge without Intersight")
+
+    cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"Selection: "+Style.RESET_ALL)
+    if cluster_type is in ("1","2","3"):
+        break
+    else:
+        print ("   <> Not a valid entry, please retry...")
 
 
 print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)

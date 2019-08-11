@@ -245,7 +245,7 @@ while True:
     print ("     3. HyperFlex Edge without Intersight")
 
     cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"Selection: "+Style.RESET_ALL)
-    if cluster_type is in ("1","2","3"):
+    if cluster_type in ("1","2","3"):
         break
     else:
         print ("   <> Not a valid entry, please retry...")

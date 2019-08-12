@@ -237,9 +237,9 @@ def intersight_connect(intersight_api_file):
         private_key=intersight_api_params['api_private_key_file'],
         api_key_id=intersight_api_params['api_key_id'],
         )
-    hx_node_profile_handle = hyperflex_node_profile_api.HyperflexNodeProfileApi(api_instance)
+    hx_profiles_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
     try:
-        api_response = hx_node_profile_handle.hyperflex_node_profiles_get()
+        api_response = hx_profiles_handle.hyperflex_cluster_profiles_get()
         return api_instance
     except ApiException:
         print (Fore.RED+"There was a problem connecting to Intersight. Check internet connectivity and the API key file and then try again.")

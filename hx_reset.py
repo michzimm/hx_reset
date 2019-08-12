@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ##################
-# Packages
+# Packages #######
 ##################
 
 import os
@@ -246,9 +246,20 @@ def intersight_connect(intersight_api_file):
         api_response = hx_profiles_handle.hyperflex_cluster_profiles_get()
         return api_instance
     except ApiException:
-        print (Fore.RED+"There was a problem connecting to Intersight. Check internet connectivity and the API key file and then try again.")
+        print (Fore.RED+"There was a problem connecting to Intersight. Check internet connectivity and the API key file and then try again."+Style.RESET_ALL)
         print ("\n")
         sys.exit()
+
+
+def does_intersight_cluster_exist(api_instance, intersight_cluster_name):
+    kwargs = dict(filter="Name eq '%s'" % intersight_cluster_name)
+    hx_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
+    api_response = hx_profile_handle.hyperflex_cluster_profiles_get(**kwargs)
+    if api_response.results is not None and api_response.results[0].name == intersight_cluster_name:
+        return True
+    else:
+        return False
+
 
 
 ##################
@@ -268,22 +279,21 @@ print ("\n")
 while True:
 
     print (Style.BRIGHT+Fore.WHITE+"Choose the number that best describes your HyperFlex cluster:"+Style.RESET_ALL)
-    print ("\n")
-    print ("     1. Standard HyperFlex with Fabric Interconnects")
-    print ("     2. HyperFlex Edge with Intersight")
-    print ("     3. HyperFlex Edge without Intersight")
-    print ("\n")
-    cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"Selection: "+Style.RESET_ALL)
-    if cluster_type in ("1","2","3"):
+    print ("     1. Standard HyperFlex with Intersight")
+    print ("     2. Standard HyperFlex without Intersight")
+    print ("     3. HyperFlex Edge with Intersight")
+    print ("     4. HyperFlex Edge without Intersight")
+    cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"     Selection: "+Style.RESET_ALL)
+    if cluster_type in ("1","2","3","4"):
         break
     else:
         print ("   <> Not a valid entry, please retry...")
 
 print ("\n")
 
-if cluster_type in ("1"):
+if cluster_type in ("1","2"):
 
-    print (Style.BRIGHT+Fore.WHITE+"Gathering UCS Details..."+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"Gathering UCS Details..."+Style.RESET_ALL)
     print ("\n")
 
     while True:
@@ -318,19 +328,32 @@ if cluster_type in ("1"):
     print ("\n")
 
 
-if cluster_type in ("2"):
+if cluster_type in ("1","3"):
 
-    print (Style.BRIGHT+Fore.WHITE+"Gathering Intersight API Details..."+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"Gathering Intersight API Details..."+Style.RESET_ALL)
     print ("\n")
 
     while True:
         intersight_api_file = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the name of the API key file: "+Style.RESET_ALL)
         if path.exists(intersight_api_file):
             api_instance = intersight_connect(intersight_api_file)
+            print ("   <> Found API key file and able to connect to Intersight.")
+            break
         else:
-            print ("     <> Unable to located provide API key file. please retry...")
+            print ("   <> Unable to locate provide API key file. please retry...")
 
-print (Style.BRIGHT+Fore.WHITE+"Gathering vCenter Details..."+Style.RESET_ALL)
+    while True:
+        intersight_cluster_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the name of the HyperFlex cluster in Intersight: "+Style.RESET_ALL)
+        intersight_cluster_exists = does_intersight_cluster_exist(api_instance, intersight_cluster_name)
+        if intersight_cluster_exists == True:
+            print ("   <> Successfully found HyperFlex cluster in Intersight.")
+            break
+        else:
+            print ("   <> Unable to find specified HyperFlex cluster in Intersight. Please check Intersight or re-enter cluster name...")
+    print ("\n")
+
+
+print (Style.BRIGHT+Fore.CYAN+"Gathering vCenter Details..."+Style.RESET_ALL)
 print ("\n")
 
 while True:
@@ -365,177 +388,180 @@ vcenter_disconnect(vcenter_handle)
 print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 1 COMPLETED: Get Environment Details"+Style.RESET_ALL)
+print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Get Environment Details"+Style.RESET_ALL)
 print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 2: Re-image HyperFlex Nodes"+Style.RESET_ALL)
+print (Style.BRIGHT+Fore.GREEN+"TASK: Re-image HyperFlex Nodes"+Style.RESET_ALL)
 print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
-ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+if cluster_type in ("1"):
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching service profiles in the provided ucs org..."+Style.RESET_ALL)
-sp_objects = get_sps_in_org(ucs_handle, org_name)
-for sp_object in sp_objects:
-    print ("   <> Item: Service Profile, Name: "+sp_object.name+", DN: "+sp_object.dn)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
+    ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching related service profile template..."+Style.RESET_ALL)
-sp_template_dn = get_sp_template_dn(ucs_handle, sp_objects[0])
-sp_template_object = get_ucs_object_by_dn(ucs_handle, sp_template_dn)
-print ("   <> Item: Service Profile Template, Name: "+sp_template_object.name+", DN: "+sp_template_object.dn)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching service profiles in the provided ucs org..."+Style.RESET_ALL)
+    sp_objects = get_sps_in_org(ucs_handle, org_name)
+    for sp_object in sp_objects:
+        print ("   <> Item: Service Profile, Name: "+sp_object.name+", DN: "+sp_object.dn)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching related service profile template boot policy information..."+Style.RESET_ALL)
-sp_template_boot_policy_dn = get_sp_template_boot_policy_dn(ucs_handle, sp_template_object)
-sp_template_boot_policy_object = get_ucs_object_by_dn(ucs_handle, sp_template_boot_policy_dn)
-print ("   <> Item: Service Profile Template Boot Policy, Name: "+sp_template_boot_policy_object.name+", DN: "+sp_template_boot_policy_object.dn)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching related service profile template..."+Style.RESET_ALL)
+    sp_template_dn = get_sp_template_dn(ucs_handle, sp_objects[0])
+    sp_template_object = get_ucs_object_by_dn(ucs_handle, sp_template_dn)
+    print ("   <> Item: Service Profile Template, Name: "+sp_template_object.name+", DN: "+sp_template_object.dn)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching current service profile template vmedia policy information..."+Style.RESET_ALL)
-sp_template_vmedia_policy_dn = get_sp_template_vmedia_policy_dn(ucs_handle, sp_template_object)
-if not sp_template_vmedia_policy_dn:
-    print ("   <> Item: Service Profile Template vMedia Policy, Name: <None>, DN: <None>")
-else:
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching related service profile template boot policy information..."+Style.RESET_ALL)
+    sp_template_boot_policy_dn = get_sp_template_boot_policy_dn(ucs_handle, sp_template_object)
+    sp_template_boot_policy_object = get_ucs_object_by_dn(ucs_handle, sp_template_boot_policy_dn)
+    print ("   <> Item: Service Profile Template Boot Policy, Name: "+sp_template_boot_policy_object.name+", DN: "+sp_template_boot_policy_object.dn)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Fetching current service profile template vmedia policy information..."+Style.RESET_ALL)
+    sp_template_vmedia_policy_dn = get_sp_template_vmedia_policy_dn(ucs_handle, sp_template_object)
+    if not sp_template_vmedia_policy_dn:
+        print ("   <> Item: Service Profile Template vMedia Policy, Name: <None>, DN: <None>")
+    else:
+        sp_template_vmedia_policy_object = get_ucs_object_by_dn(ucs_handle, sp_template_vmedia_policy_dn)
+        print ("   <> Item: Current Service Profile Template vMedia Policy, Name: "+sp_template_vmedia_policy_object.name+", DN: "+sp_template_vmedia_policy_object.dn)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Setting new service profile template vmedia policy..."+Style.RESET_ALL)
+    sp_template_object = set_sp_template_vmedia_policy(ucs_handle, sp_template_object, vmedia_policy_name)
+    sp_template_vmedia_policy_dn = get_sp_template_vmedia_policy_dn(ucs_handle, sp_template_object)
     sp_template_vmedia_policy_object = get_ucs_object_by_dn(ucs_handle, sp_template_vmedia_policy_dn)
-    print ("   <> Item: Current Service Profile Template vMedia Policy, Name: "+sp_template_vmedia_policy_object.name+", DN: "+sp_template_vmedia_policy_object.dn)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print ("   <> Item: New Service Profile Template vMedia Policy, Name: "+sp_template_vmedia_policy_object.name+", DN: "+sp_template_vmedia_policy_object.dn)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Setting new service profile template vmedia policy..."+Style.RESET_ALL)
-sp_template_object = set_sp_template_vmedia_policy(ucs_handle, sp_template_object, vmedia_policy_name)
-sp_template_vmedia_policy_dn = get_sp_template_vmedia_policy_dn(ucs_handle, sp_template_object)
-sp_template_vmedia_policy_object = get_ucs_object_by_dn(ucs_handle, sp_template_vmedia_policy_dn)
-print ("   <> Item: New Service Profile Template vMedia Policy, Name: "+sp_template_vmedia_policy_object.name+", DN: "+sp_template_vmedia_policy_object.dn)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Setting vmedia policy as first boot item in service profile template boot policy..."+Style.RESET_ALL)
+    set_vmedia_boot_policy(ucs_handle, sp_template_boot_policy_object, org_name)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Setting vmedia policy as first boot item in service profile template boot policy..."+Style.RESET_ALL)
-set_vmedia_boot_policy(ucs_handle, sp_template_boot_policy_object, org_name)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Rebooting service profiles in provided ucs org..."+Style.RESET_ALL)
+    for sp_object in sp_objects:
+        sp_power_action(ucs_handle, sp_object.dn, "hard-reset-immediate")
+        print ("   <> Rebooting service profile: "+sp_object.name)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Rebooting service profiles in provided ucs org..."+Style.RESET_ALL)
-for sp_object in sp_objects:
-    sp_power_action(ucs_handle, sp_object.dn, "hard-reset-immediate")
-    print ("   <> Rebooting service profile: "+sp_object.name)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from UCS Manager..."+Style.RESET_ALL)
+    ucs_disconnect(ucs_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from UCS Manager..."+Style.RESET_ALL)
-ucs_disconnect(ucs_handle)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while hyperflex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
+    for i in xrange(500,0,-1):
+        sys.stdout.write(str('.'))
+        sys.stdout.flush()
+        time.sleep(3)
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while hyperflex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
-for i in xrange(500,0,-1):
-    sys.stdout.write(str('.'))
-    sys.stdout.flush()
-    time.sleep(3)
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waking up..."+Style.RESET_ALL)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waking up..."+Style.RESET_ALL)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
+    ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
-ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting service profile kvm ip addresses..."+Style.RESET_ALL)
+    sp_objects = get_sps_in_org(ucs_handle, org_name)
+    sp_kvm_ips = get_sp_kvm_ips(ucs_handle, sp_objects)
+    for key, value in sp_kvm_ips.iteritems():
+        print ("   <> Item: Service Profile, Name: "+key+", KVM IP: "+value)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting service profile kvm ip addresses..."+Style.RESET_ALL)
-sp_objects = get_sps_in_org(ucs_handle, org_name)
-sp_kvm_ips = get_sp_kvm_ips(ucs_handle, sp_objects)
-for key, value in sp_kvm_ips.iteritems():
-    print ("   <> Item: Service Profile, Name: "+key+", KVM IP: "+value)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for access to ESXi CLI prompt for service profiles, this can take another couple of minutes..."+Style.RESET_ALL)
+    threads = []
+    for key, value in sp_kvm_ips.iteritems():
+        print ("   <> Waiting to connect to ESXi CLI prompt on service profile: "+key)
+        thread = Thread(target=monitor_esxi_prompt, args=(key, value,))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for access to ESXi CLI prompt for service profiles, this can take another couple of minutes..."+Style.RESET_ALL)
-threads = []
-for key, value in sp_kvm_ips.iteritems():
-    print ("   <> Waiting to connect to ESXi CLI prompt on service profile: "+key)
-    thread = Thread(target=monitor_esxi_prompt, args=(key, value,))
-    threads.append(thread)
-    thread.start()
-for thread in threads:
-    thread.join()
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Gracefully powering-off service profiles..."+Style.RESET_ALL)
+    for sp_object in sp_objects:
+        sp_power_action(ucs_handle, sp_object.dn, "soft-shut-down-only")
+        print ("   <> Powering-off service profile: "+sp_object.name)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Gracefully powering-off service profiles..."+Style.RESET_ALL)
-for sp_object in sp_objects:
-    sp_power_action(ucs_handle, sp_object.dn, "soft-shut-down-only")
-    print ("   <> Powering-off service profile: "+sp_object.name)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Re-image HyperFlex Nodes"+Style.RESET_ALL)
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 2 COMPLETED: Re-image HyperFlex Nodes"+Style.RESET_ALL)
-print ("\n")
+    print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 3: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of physical rack servers supporting HyperFlex service profiles..."+Style.RESET_ALL)
+    phy_server_dns = get_phys_server_dns(ucs_handle, sp_objects)
+    for phy_server in phy_server_dns:
+        print ("   <> Item: Physical Server, DN: "+phy_server)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of physical rack servers supporting HyperFlex service profiles..."+Style.RESET_ALL)
-phy_server_dns = get_phys_server_dns(ucs_handle, sp_objects)
-for phy_server in phy_server_dns:
-    print ("   <> Item: Physical Server, DN: "+phy_server)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Deleting org \""+org_name+"\" in UCS Manager..."+Style.RESET_ALL)
+    delete_org(ucs_handle, org_name)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Deleting org \""+org_name+"\" in UCS Manager..."+Style.RESET_ALL)
-delete_org(ucs_handle, org_name)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
-
-
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for complete dissassociation of physical servers..."+Style.RESET_ALL)
-threads = []
-for phy_server in phy_server_dns:
-    thread = Thread(target=monitor_phy_server_assoc, args=(ucs_handle, phy_server,))
-    threads.append(thread)
-    thread.start()
-for thread in threads:
-    thread.join()
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for complete dissassociation of physical servers..."+Style.RESET_ALL)
+    threads = []
+    for phy_server in phy_server_dns:
+        thread = Thread(target=monitor_phy_server_assoc, args=(ucs_handle, phy_server,))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
 
 
 
-print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from UCS Manager..."+Style.RESET_ALL)
-ucs_disconnect(ucs_handle)
-print ("      "+u'\U0001F44D'+" Done.")
-print ("\n")
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from UCS Manager..."+Style.RESET_ALL)
+    ucs_disconnect(ucs_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 3 COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
-print ("\n")
+    print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
+    print ("\n")
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK 4: Clean-up HyperFlex Config in vCenter"+Style.RESET_ALL)
+print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config in vCenter"+Style.RESET_ALL)
 print ("\n")
 
 

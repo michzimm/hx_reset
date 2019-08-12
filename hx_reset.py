@@ -12,20 +12,28 @@ import time
 import pexpect
 import getpass
 from threading import Thread
-from ucsmsdk.ucshandle import UcsHandle
+import json
 from colorama import Fore, Back, Style
+
+from ucsmsdk.ucshandle import UcsHandle
 from ucsmsdk.mometa.lsboot.LsbootPolicy import LsbootPolicy
 from ucsmsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
 from ucsmsdk.mometa.lsboot.LsbootEmbeddedLocalDiskImage import LsbootEmbeddedLocalDiskImage
 from ucsmsdk.mometa.lsboot.LsbootUsbFlashStorageImage import LsbootUsbFlashStorageImage
 from ucsmsdk.mometa.ls.LsPower import LsPower
+
 from pyVim import connect
 from pyVmomi import vim
-import json
+
 import intersight
 from intersight.intersight_api_client import IntersightApiClient
 from intersight.rest import ApiException
 from intersight.apis import hyperflex_cluster_profile_api
+from intersight.apis import hyperflex_node_profile_api
+from intersight.apis import compute_rack_unit_api
+from intersight.apis import asset_managed_device_api
+
+from imcsdk.imchandle import ImcHandle
 
 
 ##################
@@ -259,6 +267,51 @@ def does_intersight_cluster_exist(api_instance, intersight_cluster_name):
         return True
     else:
         return False
+
+
+def get_intersight_cluster_profile(api_instance, intersight_cluster_name):
+    kwargs = dict(filter="Name eq '%s'" % intersight_cluster_name)
+    hx_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
+    intersight_cluster_profile = hx_profile_handle.hyperflex_cluster_profiles_get(**kwargs)
+    return intersight_cluster_profile.results
+
+
+def get_node_profile_moid_list(api_instance, intersight_cluster_profile):
+    node_profile_configs = intersight_cluster_profile.node_profile_config
+    node_profile_moid_list = []
+    for node_profile in node_profile_configs:
+        node_profile_moid_list.append(node_profile.moid)
+    return node_profile_moid_list
+
+
+def get_device_ip_by_node_profile_moid(api_instance, node_profile_moid):
+    kwargs = dict(filter="Moid eq '%s'" % node_profile_moid)
+    hx_node_profile_handle = hyperflex_node_profile_api.HyperflexNodeProfileApi(api_instance)
+    hx_node_profile = hx_node_profile_handle.hyperflex_node_profiles_get(**kwargs)
+    rack_unit_moid = hx_node_profile.results[0].assigned_server.moid
+    kwargs = dict(filter="Moid eq '%s'" % rack_unit_moid)
+    compute_rack_unit_handle = compute_rack_unit_api.ComputeRackUnitApi(api_instance)
+    rack_unit = compute_rack_unit_handle.compute_rack_units_get(**kwargs).results
+    asset_device_moid = rack_unit.registered_device.moid
+    kwargs = dict(filter="Moid eq '%s'" % asset_device_moid)
+    asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
+    asset_device_registration = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results
+    device_ip = asset_device_registration.device_ip_address
+    return device_ip
+
+
+
+
+
+
+
+def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
+    cimc_handle = ImcHandle(cimc_ip_address, cimc_user, cimc_password)
+    cimc_handle.login()
+    return cimc_handle
+
+def cimc_disconnect(cimc_handle):
+    cimc_handle.logout()
 
 
 

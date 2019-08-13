@@ -31,9 +31,14 @@ from intersight.rest import ApiException
 from intersight.apis import hyperflex_cluster_profile_api
 from intersight.apis import hyperflex_node_profile_api
 from intersight.apis import compute_rack_unit_api
-from intersight.apis import asset_managed_device_api
+from intersight.apis import asset_device_registration_api
 
 from imcsdk.imchandle import ImcHandle
+from imcsdk.mometa.comm.CommVMediaMap import CommVMediaMap
+from imcsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
+from imcsdk.mometa.lsboot.LsbootStorage import LsbootStorage
+from imcsdk.mometa.compute.ComputeRackUnit import ComputeRackUnit
+
 
 
 ##################
@@ -276,39 +281,58 @@ def get_intersight_cluster_profile(api_instance, intersight_cluster_name):
     return intersight_cluster_profile.results
 
 
-def get_node_profile_moid_list(api_instance, intersight_cluster_profile):
+def get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name):
+    kwargs = dict(filter="Name eq '%s'" % intersight_cluster_name)
+    hx_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
+    intersight_cluster_profile = hx_profile_handle.hyperflex_cluster_profiles_get(**kwargs).results[0]
     node_profile_configs = intersight_cluster_profile.node_profile_config
     node_profile_moid_list = []
     for node_profile in node_profile_configs:
         node_profile_moid_list.append(node_profile.moid)
-    return node_profile_moid_list
-
-
-def get_device_ip_by_node_profile_moid(api_instance, node_profile_moid):
-    kwargs = dict(filter="Moid eq '%s'" % node_profile_moid)
-    hx_node_profile_handle = hyperflex_node_profile_api.HyperflexNodeProfileApi(api_instance)
-    hx_node_profile = hx_node_profile_handle.hyperflex_node_profiles_get(**kwargs)
-    rack_unit_moid = hx_node_profile.results[0].assigned_server.moid
-    kwargs = dict(filter="Moid eq '%s'" % rack_unit_moid)
-    compute_rack_unit_handle = compute_rack_unit_api.ComputeRackUnitApi(api_instance)
-    rack_unit = compute_rack_unit_handle.compute_rack_units_get(**kwargs).results
-    asset_device_moid = rack_unit.registered_device.moid
-    kwargs = dict(filter="Moid eq '%s'" % asset_device_moid)
-    asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
-    asset_device_registration = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results
-    device_ip = asset_device_registration.device_ip_address
-    return device_ip
-
-
-
-
-
+    device_ip_list = []
+    for node_profile_moid in node_profile_moid_list:
+        kwargs = dict(filter="Moid eq '%s'" % node_profile_moid)
+        hx_node_profile_handle = hyperflex_node_profile_api.HyperflexNodeProfileApi(api_instance)
+        hx_node_profile = hx_node_profile_handle.hyperflex_node_profiles_get(**kwargs)
+        rack_unit_moid = hx_node_profile.results[0].assigned_server.moid
+        kwargs = dict(filter="Moid eq '%s'" % rack_unit_moid)
+        compute_rack_unit_handle = compute_rack_unit_api.ComputeRackUnitApi(api_instance)
+        rack_unit = compute_rack_unit_handle.compute_rack_units_get(**kwargs).results[0]
+        asset_device_moid = rack_unit.registered_device.moid
+        kwargs = dict(filter="Moid eq '%s'" % asset_device_moid)
+        asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
+        asset_device_registration = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results[0]
+        device_ip = asset_device_registration.device_ip_address[0]
+        device_ip_list.append(device_ip)
+    return device_ip_list
 
 
 def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
     cimc_handle = ImcHandle(cimc_ip_address, cimc_user, cimc_password)
     cimc_handle.login()
     return cimc_handle
+
+
+def cimc_power_action(cimc_handle, action):
+    mo=handle.query_dn('sys/rack-unit-1')
+    if action == "off":
+        mo.admin_power = 'down'
+    elif action == "on":
+        mo.admin_power = 'up'
+    handle.set_mo(mo)
+
+
+def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
+    lsboot_vmedia_policy = CommVMediaMap(parent_mo_or_dn='sys/svc-ext/vmedia-svc',volume_name='hxesxi',remote_share=cimc_vmedia_share,remote_file=cimc_vmedia_filename,map=cimc_vmedia_type)
+    cimc_handle.add_mo(lsboot_vmedia_policy)
+
+
+def set_cimc_boot_policy(cimc_handle):
+    lsboot_vmedia_boot_order = LsbootVirtualMedia(parent_mo_or_dn='sys/rack-unit-1/boot-policy',type='virtual-media',order='1',access='read-only')
+    cimc_handle.add_mo(lsboot_vmedia_boot_order)
+    lsboot_storage_boot_order = LsbootStorage(parent_mo_or_dn='sys/rack-unit-1/boot-policy',type='storage',order='2',access='read-write')
+    cimc_handle.add_mo(lsboot_storage_boot_order)
+
 
 def cimc_disconnect(cimc_handle):
     cimc_handle.logout()
@@ -335,14 +359,19 @@ while True:
     print ("     1. Standard HyperFlex with Intersight")
     print ("     2. Standard HyperFlex without Intersight")
     print ("     3. HyperFlex Edge with Intersight")
-    print ("     4. HyperFlex Edge without Intersight")
     cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"     Selection: "+Style.RESET_ALL)
-    if cluster_type in ("1","2","3","4"):
+    if cluster_type in ("1","2","3"):
         break
     else:
         print ("   <> Not a valid entry, please retry...")
 
 print ("\n")
+
+
+##############################
+# Gather UCSM Details ########
+##############################
+
 
 if cluster_type in ("1","2"):
 
@@ -381,6 +410,11 @@ if cluster_type in ("1","2"):
     print ("\n")
 
 
+##############################
+# Gather Intersight API Details
+##############################
+
+
 if cluster_type in ("1","3"):
 
     print (Style.BRIGHT+Fore.CYAN+"Gathering Intersight API Details..."+Style.RESET_ALL)
@@ -393,7 +427,7 @@ if cluster_type in ("1","3"):
             print ("   <> Found API key file and able to connect to Intersight.")
             break
         else:
-            print ("   <> Unable to locate provide API key file. please retry...")
+            print ("   <> Unable to locate provided API key file. please retry...")
 
     while True:
         intersight_cluster_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the name of the HyperFlex cluster in Intersight: "+Style.RESET_ALL)
@@ -404,6 +438,11 @@ if cluster_type in ("1","3"):
         else:
             print ("   <> Unable to find specified HyperFlex cluster in Intersight. Please check Intersight or re-enter cluster name...")
     print ("\n")
+
+
+##############################
+# Gather vCenter  Details
+##############################
 
 
 print (Style.BRIGHT+Fore.CYAN+"Gathering vCenter Details..."+Style.RESET_ALL)
@@ -445,11 +484,16 @@ print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Get Environment Details"+Style.R
 print ("\n")
 
 
+##############################
+# Re-Image UCS Managed HyperFlex Nodes
+##############################
+
+
 print (Style.BRIGHT+Fore.GREEN+"TASK: Re-image HyperFlex Nodes"+Style.RESET_ALL)
 print ("\n")
 
 
-if cluster_type in ("1"):
+if cluster_type in ("1","2"):
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
@@ -575,6 +619,11 @@ if cluster_type in ("1"):
     print ("\n")
 
 
+##############################
+# Clean Up UCS Manager Config
+##############################
+
+
     print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
     print ("\n")
 
@@ -612,6 +661,78 @@ if cluster_type in ("1"):
 
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
     print ("\n")
+
+
+##############################
+# Re-Image HyperFlex Edge Nodes
+##############################
+
+
+if cluster_type in ("3"):
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of CIMC IP addresses from Intersight..."+Style.RESET_ALL)
+    cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
+    cimc_handle_list = []
+    for cimc_ip in cimc_ip_list:
+        print ("   <> Item: HyperFlex Edge Node, CIMC IP: "+cimc_ip)
+        cimc_handle = cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+        cimc_handle_list.append(cimc_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-off HyperFlex Edge nodes"+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        cimc_power_action(cimc_handle, "off")
+        print ("   <> Item: HyperFlex Edge Node, Power State: off")
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes"+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Modifying Boot Policy on HyperFlex Edge nodes"+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        set_cimc_boot_policy(cimc_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-on HyperFlex Edge nodes"+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        cimc_power_action(cimc_handle, "on")
+        print ("   <> Item: HyperFlex Edge Node, Power State: off")
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from CIMCs..."+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        cimc_disconnect(cimc_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while hyperflex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
+    for i in xrange(500,0,-1):
+        sys.stdout.write(str('.'))
+        sys.stdout.flush()
+        time.sleep(3)
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waking up..."+Style.RESET_ALL)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+##############################
+# Clean Up vCenter Config
+##############################
 
 
 print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config in vCenter"+Style.RESET_ALL)

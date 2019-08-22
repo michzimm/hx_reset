@@ -664,7 +664,7 @@ if cluster_type in ("1","2"):
 
 
 ##############################
-# Re-Image HyperFlex Edge Nodes
+# Re-Image HyperFlex Edge Nodes with Intersight
 ##############################
 
 
@@ -672,16 +672,23 @@ if cluster_type in ("3"):
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of CIMC IP addresses from Intersight..."+Style.RESET_ALL)
     cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
-    cimc_handle_list = []
     for cimc_ip in cimc_ip_list:
         print ("   <> Item: HyperFlex Edge Node, CIMC IP: "+cimc_ip)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to CIMC interfaces of HyperFlex Edge nodes..."+Style.RESET_ALL)
+    cimc_handle_list = []
+    for cimc_ip in cimc_ip_list:
+        print ("   <> Connected to CIMC IP: "+cimc_ip)
         cimc_handle = cimc_connect(cimc_ip_address, cimc_user, cimc_password)
         cimc_handle_list.append(cimc_handle)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-off HyperFlex Edge nodes"+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-off HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         cimc_power_action(cimc_handle, "off")
         print ("   <> Item: HyperFlex Edge Node, Power State: off")
@@ -689,21 +696,21 @@ if cluster_type in ("3"):
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes"+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Modifying Boot Policy on HyperFlex Edge nodes"+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Modifying Boot Policy on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         set_cimc_boot_policy(cimc_handle)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-on HyperFlex Edge nodes"+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         cimc_power_action(cimc_handle, "on")
         print ("   <> Item: HyperFlex Edge Node, Power State: off")
@@ -726,6 +733,29 @@ if cluster_type in ("3"):
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waking up..."+Style.RESET_ALL)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to CIMC interfaces of HyperFlex Edge nodes..."+Style.RESET_ALL)
+    cimc_handle_list = []
+    for cimc_ip in cimc_ip_list:
+        print ("   <> Connected to CIMC IP: "+cimc_ip)
+        cimc_handle = cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+        cimc_handle_list.append(cimc_handle)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for access to ESXi CLI prompt for service profiles, this can take another couple of minutes..."+Style.RESET_ALL)
+    threads = []
+    for key, value in sp_kvm_ips.iteritems():
+        print ("   <> Waiting to connect to ESXi CLI prompt on service profile: "+key)
+        thread = Thread(target=monitor_esxi_prompt, args=(key, value,))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 

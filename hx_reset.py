@@ -389,10 +389,10 @@ print ("\n")
 while True:
 
     print (Style.BRIGHT+Fore.WHITE+"Choose the number that best describes your HyperFlex cluster:"+Style.RESET_ALL)
-    print ("     1. Standard HyperFlex with Intersight")
-    print ("     2. Standard HyperFlex without Intersight")
-    print ("     3. HyperFlex Edge with Intersight")
-    print ("     4. HyperFlex Edge without Intersight")
+    print ("     1. Standard HyperFlex connected to Intersight")
+    print ("     2. Standard HyperFlex not connected to Intersight")
+    print ("     3. HyperFlex Edge connected to Intersight")
+    print ("     4. HyperFlex Edge not connected Intersight")
     cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"     Selection: "+Style.RESET_ALL)
     if cluster_type in ("1","2","3","4"):
         break
@@ -420,6 +420,7 @@ if cluster_type in ("1","2"):
             ucs_handle = ucs_connect(ucsm_ip, ucsm_user, ucsm_pass)
             if ucs_handle:
                 print ("   <> Successfully connected to UCS Manager.")
+                print ("      "+u'\U0001F44D'+" Done.")
                 break
         except:
             print ("   <> Unable to connect to UCS Mananger with the provided details, please retry...")
@@ -428,6 +429,7 @@ if cluster_type in ("1","2"):
         org_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS Org associated with the HyperFlex cluster: "+Style.RESET_ALL)
         if org_exists(ucs_handle, org_name):
             print ("   <> Successfully found UCS Org.")
+            print ("      "+u'\U0001F44D'+" Done.")
             break
         else:
             print ("   <> Provided UCS Org does not exist, please retry...")
@@ -436,6 +438,7 @@ if cluster_type in ("1","2"):
         vmedia_policy_name = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the UCS vMedia policy name to be used for re-imaging the HyperFlex nodes: "+Style.RESET_ALL)
         if vmedia_policy_exists(ucs_handle, vmedia_policy_name):
             print ("   <> Successfully found vMedia policy.")
+            print ("      "+u'\U0001F44D'+" Done.")
             break
         else:
             print ("   <> Provided UCS vMedia policy does not exist, please retry...")
@@ -459,6 +462,7 @@ if cluster_type in ("1","3"):
         if path.exists(intersight_api_file):
             api_instance = intersight_connect(intersight_api_file)
             print ("   <> Found API key file and able to connect to Intersight.")
+            print ("      "+u'\U0001F44D'+" Done.")
             break
         else:
             print ("   <> Unable to locate provided API key file. please retry...")
@@ -468,6 +472,7 @@ if cluster_type in ("1","3"):
         intersight_cluster_exists = does_intersight_cluster_exist(api_instance, intersight_cluster_name)
         if intersight_cluster_exists == True:
             print ("   <> Successfully found HyperFlex cluster in Intersight.")
+            print ("      "+u'\U0001F44D'+" Done.")
             break
         else:
             print ("   <> Unable to find specified HyperFlex cluster in Intersight. Please check Intersight or re-enter cluster name...")
@@ -497,26 +502,28 @@ if cluster_type in ("3","4"):
             input_cimc_ip_list = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter a comma seperated list of CIMC IP addresses (i.e. \"192.168.1.2,192.168.1.3,192.168.1.4\"): "+Style.RESET_ALL)
             raw_cimc_ip_list = input_cimc_ip_list.split(",")
             cimc_ip_list = []
-            for raw_cimc_ip in raw_cimc_ip_list:
-                cimc_ip = raw_cimc_ip.replace(" ","")
-                try:
+            try:
+                for raw_cimc_ip in raw_cimc_ip_list:
+                    cimc_ip = raw_cimc_ip.replace(" ","")
                     IP(cimc_ip)
                     cimc_ip_list.append(cimc_ip)
-                except:
-                    print ("    <> Provided CIMC IP: "+cimc_ip+" does not appear to be a valid IPv4 address, please retry...")
+                break
+            except:
+                print ("    <> Provided CIMC IP: "+cimc_ip+" does not appear to be a valid IPv4 address, please retry...")
 
 
     while True:
         cimc_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC username: "+Style.RESET_ALL)
         cimc_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC password: "+Style.RESET_ALL)
-        cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
         try:
-            cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+            cimc_connect(cimc_ip_list[0], cimc_user, cimc_pass)
             if cimc_connect:
-                print ("   <> Successfully connected to HyperFlex Edge node's CIMC.")
+                print ("   <> Successfully connected to CIMC using provided credentials")
+                print ("      "+u'\U0001F44D'+" Done.")
                 break
         except:
-            print ("   <> Unable to connect to HyperFlex Edge node's CIMC with the provided details, please retry...")
+            print ("   <> Unable to connect to CIMC with the provided credentials, please retry...")
+    print ("\n")
 
 
 
@@ -764,14 +771,20 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-off HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         cimc_power_action(cimc_handle, "off")
-        print ("   <> Item: HyperFlex Edge Node, Power State: off")
-    print ("      "+u'\U0001F44D'+" Done.")
-    print ("\n")
+    for cimc_handle in cimc_handle_list:
+        while True:
+            cimc_power_state = get_cimc_power_state(cimc_handle)
+            cimc_ip = get_cimc_ip(cimc_handle)
+            if cimc_power_state == "off":
+                print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Power State: off")
+                break
+            else:
+                time.sleep(5)
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
-        create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
+        create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
@@ -786,9 +799,15 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Powering-on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         cimc_power_action(cimc_handle, "on")
-        print ("   <> Item: HyperFlex Edge Node, Power State: off")
-    print ("      "+u'\U0001F44D'+" Done.")
-    print ("\n")
+    for cimc_handle in cimc_handle_list:
+        while True:
+            cimc_power_state = get_cimc_power_state(cimc_handle)
+            cimc_ip = get_cimc_ip(cimc_handle)
+            if cimc_power_state == "off":
+                print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Power State: off")
+                break
+            else:
+                time.sleep(5)
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from CIMCs..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:

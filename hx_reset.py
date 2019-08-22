@@ -803,11 +803,14 @@ if cluster_type in ("3"):
         while True:
             cimc_power_state = get_cimc_power_state(cimc_handle)
             cimc_ip = get_cimc_ip(cimc_handle)
-            if cimc_power_state == "off":
-                print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Power State: off")
+            if cimc_power_state == "on":
+                print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Power State: on")
                 break
             else:
                 time.sleep(5)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Disconnecting from CIMCs..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
@@ -867,6 +870,13 @@ if cluster_type in ("3"):
 
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
+
+
+##############################
+# Clean Up Intersight
+##############################
+
+
 
 
 ##############################

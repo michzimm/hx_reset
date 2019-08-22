@@ -334,6 +334,30 @@ def set_cimc_boot_policy(cimc_handle):
     cimc_handle.add_mo(lsboot_storage_boot_order)
 
 
+def monitor_cimc_esxi_prompt(cimc_ip):
+    ssh_newkey = "Are you sure you want to continue connecting"
+    cmd = "ssh -l %s %s -oKexAlgorithms=diffie-hellman-group1-sha1,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" % (cimc_user, cimc_ip)
+    kvm_session = pexpect.spawn(cmd, timeout=60)
+    kvm_session.timeout=600
+    i = kvm_session.expect([ssh_newkey, '[Pp]assword:'])
+    if i == 0:
+        kvm_session.sendline("yes")
+        kvm_session.expect("[Pp]assword:")
+    time.sleep(5)
+    kvm_session.sendline(cimc_pass)
+    kvm_session.expect("#")
+    kvm_session.sendline("connect host")
+    kvm_session.expect("Connection to Exit|Exit the session")
+    kvm_session.sendcontrol('d')
+    time.sleep(2)
+    kvm_session.expect("login:")
+    kvm_session.sendline("root")
+    kvm_session.expect("[Pp]assword:")
+    kvm_session.sendline("Cisco123")
+    kvm_session.expect(":~]")
+    print ("   <> Successfully connected to ESXi CLI prompt on CIMC: "+cimc_ip)
+
+
 def cimc_disconnect(cimc_handle):
     cimc_handle.logout()
 
@@ -438,6 +462,29 @@ if cluster_type in ("1","3"):
         else:
             print ("   <> Unable to find specified HyperFlex cluster in Intersight. Please check Intersight or re-enter cluster name...")
     print ("\n")
+
+
+##############################
+# Gather CIMC Credential Details
+##############################
+
+if cluster_type in ("3"):
+
+    print (Style.BRIGHT+Fore.CYAN+"Gathering CIMC Credential Details..."+Style.RESET_ALL)
+    print ("\n")
+
+    while True:
+        cimc_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC username: "+Style.RESET_ALL)
+        cimc_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC password: "+Style.RESET_ALL)
+        cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
+        try:
+            cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+            if cimc_connect:
+                print ("   <> Successfully connected to HyperFlex Edge node's CIMC.")
+                break
+        except:
+            print ("   <> Unable to connect to HyperFlex Edge node's CIMC with the provided details, please retry...")
+
 
 
 ##############################
@@ -749,9 +796,9 @@ if cluster_type in ("3"):
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Waiting for access to ESXi CLI prompt for service profiles, this can take another couple of minutes..."+Style.RESET_ALL)
     threads = []
-    for key, value in sp_kvm_ips.iteritems():
-        print ("   <> Waiting to connect to ESXi CLI prompt on service profile: "+key)
-        thread = Thread(target=monitor_esxi_prompt, args=(key, value,))
+    for cimc_ip in cimc_ip_list:
+        print ("   <> Waiting to connect to ESXi CLI prompt on CIMC IP: "+cimc_ip)
+        thread = Thread(target=monitor_cimc_esxi_prompt, args=(cimc_ip,))
         threads.append(thread)
         thread.start()
     for thread in threads:

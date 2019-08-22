@@ -14,6 +14,7 @@ import getpass
 from threading import Thread
 import json
 from colorama import Fore, Back, Style
+from IPy import IP
 
 from ucsmsdk.ucshandle import UcsHandle
 from ucsmsdk.mometa.lsboot.LsbootPolicy import LsbootPolicy
@@ -317,6 +318,8 @@ def cimc_power_action(cimc_handle, action):
     mo=handle.query_dn('sys/rack-unit-1')
     if action == "off":
         mo.admin_power = 'down'
+    elif action == "shutdown":
+        mo.admin_power = 'soft-shut-down'
     elif action == "on":
         mo.admin_power = 'up'
     handle.set_mo(mo)
@@ -358,6 +361,12 @@ def monitor_cimc_esxi_prompt(cimc_ip):
     print ("   <> Successfully connected to ESXi CLI prompt on CIMC: "+cimc_ip)
 
 
+def get_cimc_ip(cimc_handle):
+    mo=handle.query_dn('sys/rack-unit-1/mgmt/if-1')
+    power_state = mo.ext_ip
+    return power_state
+
+
 def cimc_disconnect(cimc_handle):
     cimc_handle.logout()
 
@@ -383,8 +392,9 @@ while True:
     print ("     1. Standard HyperFlex with Intersight")
     print ("     2. Standard HyperFlex without Intersight")
     print ("     3. HyperFlex Edge with Intersight")
+    print ("     4. HyperFlex Edge without Intersight")
     cluster_type = raw_input(Style.BRIGHT+Fore.WHITE+"     Selection: "+Style.RESET_ALL)
-    if cluster_type in ("1","2","3"):
+    if cluster_type in ("1","2","3","4"):
         break
     else:
         print ("   <> Not a valid entry, please retry...")
@@ -465,13 +475,36 @@ if cluster_type in ("1","3"):
 
 
 ##############################
-# Gather CIMC Credential Details
+# Gather CIMC Details
 ##############################
 
-if cluster_type in ("3"):
 
-    print (Style.BRIGHT+Fore.CYAN+"Gathering CIMC Credential Details..."+Style.RESET_ALL)
+if cluster_type in ("3","4"):
+
+    print (Style.BRIGHT+Fore.CYAN+"Gathering CIMC Details..."+Style.RESET_ALL)
     print ("\n")
+
+    if cluster_type in ("3"):
+        print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of CIMC IP addresses from Intersight..."+Style.RESET_ALL)
+        cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
+        for cimc_ip in cimc_ip_list:
+            print ("   <> Item: HyperFlex Edge Node, CIMC IP: "+cimc_ip)
+        print ("      "+u'\U0001F44D'+" Done.")
+        print ("\n")
+
+    elif cluster_type in ("4"):
+        while True:
+            input_cimc_ip_list = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter a comma seperated list of CIMC IP addresses (i.e. \"192.168.1.2,192.168.1.3,192.168.1.4\"): "+Style.RESET_ALL)
+            raw_cimc_ip_list = input_cimc_ip_list.split(",")
+            cimc_ip_list = []
+            for raw_cimc_ip in raw_cimc_ip_list:
+                cimc_ip = raw_cimc_ip.replace(" ","")
+                try:
+                    IP(cimc_ip)
+                    cimc_ip_list.append(cimc_ip)
+                except:
+                    print ("    <> Provided CIMC IP: "+cimc_ip+" does not appear to be a valid IPv4 address, please retry...")
+
 
     while True:
         cimc_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC username: "+Style.RESET_ALL)
@@ -717,13 +750,6 @@ if cluster_type in ("1","2"):
 
 if cluster_type in ("3"):
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Getting list of CIMC IP addresses from Intersight..."+Style.RESET_ALL)
-    cimc_ip_list = get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name)
-    for cimc_ip in cimc_ip_list:
-        print ("   <> Item: HyperFlex Edge Node, CIMC IP: "+cimc_ip)
-    print ("      "+u'\U0001F44D'+" Done.")
-    print ("\n")
-
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to CIMC interfaces of HyperFlex Edge nodes..."+Style.RESET_ALL)
     cimc_handle_list = []
@@ -803,6 +829,23 @@ if cluster_type in ("3"):
         thread.start()
     for thread in threads:
         thread.join()
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Gracefully Shutting Down HyperFlex Edge nodes..."+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        cimc_power_action(cimc_handle, "shutdown")
+    for cimc_handle in cimc_handle_list:
+        while True:
+            cimc_power_state = get_cimc_power_state(cimc_handle)
+            cimc_ip = get_cimc_ip(cimc_handle)
+            if cimc_power_state == "off":
+                print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Power State: off")
+                break
+            else:
+                time.sleep(5)
+
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 

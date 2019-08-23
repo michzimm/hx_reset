@@ -347,8 +347,14 @@ def get_cimc_power_state(cimc_handle):
     return power_state
 
 
-def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
-    lsboot_vmedia_policy = CommVMediaMap(parent_mo_or_dn='sys/svc-ext/vmedia-svc',volume_name='hxesxi',remote_share=cimc_vmedia_share,remote_file=cimc_vmedia_filename,map=cimc_vmedia_type)
+def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type, cimc_vmedia_user=None, cimc_vmedia_pass=None):
+    if cimc_vmedia_type == "nfs":
+        lsboot_vmedia_policy = CommVMediaMap(parent_mo_or_dn='sys/svc-ext/vmedia-svc',volume_name='hxesxi',remote_share=cimc_vmedia_share,remote_file=cimc_vmedia_filename,map=cimc_vmedia_type)
+    elif cimc_vmedia_type == "cifs" or cimc_vmedia_type == "www":
+        if cimc_vmedia_user is not None:
+            lsboot_vmedia_policy = CommVMediaMap(parent_mo_or_dn='sys/svc-ext/vmedia-svc',volume_name='hxesxi',remote_share=cimc_vmedia_share,remote_file=cimc_vmedia_filename,map=cimc_vmedia_type,username=cimc_vmedia_user,password=cimc_vmedia_pass)
+        else:
+            lsboot_vmedia_policy = CommVMediaMap(parent_mo_or_dn='sys/svc-ext/vmedia-svc',volume_name='hxesxi',remote_share=cimc_vmedia_share,remote_file=cimc_vmedia_filename,map=cimc_vmedia_type)
     cimc_handle.add_mo(lsboot_vmedia_policy)
 
 
@@ -538,13 +544,38 @@ if cluster_type in ("3","4"):
         cimc_user = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC username: "+Style.RESET_ALL)
         cimc_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Please enter the HyperFlex Edge node's CIMC password: "+Style.RESET_ALL)
         try:
-            cimc_connect(cimc_ip_list[0], cimc_user, cimc_pass)
+            cimc_handle = cimc_connect(cimc_ip_list[0], cimc_user, cimc_pass)
             if cimc_connect:
                 print ("   <> Successfully connected to CIMC using provided credentials")
+                cimc_disconnect(cimc_handle)
                 print ("      "+u'\U0001F44D'+" Done.")
                 break
         except:
             print ("   <> Unable to connect to CIMC with the provided credentials, please retry...")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"Gathering HyperFlex ESXi ISO vMedia Details..."+Style.RESET_ALL)
+    print ("\n")
+
+
+    while True:
+        cimc_vmedia_type = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the Share type (options: \"nfs\", \"cifs\" or \"www\"): "+Style.RESET_ALL)
+        if cimc_vmedia_type in ("nfs","NFS","cifs","CIFS","www","WWW"):
+            break
+        else:
+            print ("   <> Share type entered not valid, please retry...")
+    cimc_vmedia_share = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the Remote Share location (i.e. \"10.1.8.3:/isos\"): "+Style.RESET_ALL)
+    cimc_vmedia_filename = raw_input(Style.BRIGHT+Fore.WHITE+"Please enter the full filename of the HyperFlex ESXi ISO image on the Remote Share: "+Style.RESET_ALL)
+    if cimc_vmedia_type == "cifs" or cimc_vmedia_type == "www":
+        while True:
+            user_prompt = raw_input(Style.BRIGHT+Fore.WHITE+"Do you need to enter a Username and Password to access the Remote Share? (y/n): "+Style.RESET_ALL)
+            if user_prompt in ("y","Y","n","N"):
+                cimc_vmedia_user = raw_input(Style.BRIGHT+Fore.WHITE+"Enter Remote Share username: "+Style.RESET_ALL)
+                cimc_vmedia_pass = getpass.getpass(Style.BRIGHT+Fore.WHITE+"Enter Remote Share password: "+Style.RESET_ALL)
+                break
+            else:
+                print ("   <> Not a valid response, please retry...")
     print ("\n")
 
 
@@ -675,7 +706,7 @@ if cluster_type in ("1","2"):
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while hyperflex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while HyperFlex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
     for i in xrange(500,0,-1):
         sys.stdout.write(str('.'))
         sys.stdout.flush()
@@ -846,7 +877,7 @@ if cluster_type in ("3"):
     print ("\n")
 
 
-    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while hyperflex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while HyperFlex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
     for i in xrange(500,0,-1):
         sys.stdout.write(str('.'))
         sys.stdout.flush()
@@ -863,7 +894,7 @@ if cluster_type in ("3"):
     cimc_handle_list = []
     for cimc_ip in cimc_ip_list:
         print ("   <> Connected to CIMC IP: "+cimc_ip)
-        cimc_handle = cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+        cimc_handle = cimc_connect(cimc_ip, cimc_user, cimc_password)
         cimc_handle_list.append(cimc_handle)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")

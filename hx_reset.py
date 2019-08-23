@@ -308,6 +308,22 @@ def get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name):
     return device_ip_list
 
 
+def intersight_cluster_profile_unassign_nodes(api_instance, cluster_profile):
+    cluster_profile_moid = cluster_profile.moid
+    cluster_profile_body = {
+        'NodeProfileconfig':[]
+        }
+    hx_cluster_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
+    api_response = hx_cluster_profile_handle.hyperflex_cluster_profiles_moid_post(self, cluster_profile_moid, cluster_profile_body)
+
+
+def delete_intersight_device(api_instance, intersight_cluster_name):
+    kwargs = dict(filter="DeviceHostname eq '%s'" and "PlatformType eq HX" % intersight_cluster_name)
+    asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
+    asset_device_registration_moid = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results[0].moid
+    asset_device_registration_handle.asset_device_registrations_moid_delete(self, asset_device_registration_moid)
+
+
 def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
     cimc_handle = ImcHandle(cimc_ip_address, cimc_user, cimc_password)
     cimc_handle.login()
@@ -751,7 +767,7 @@ if cluster_type in ("1","2"):
 
 
 ##############################
-# Re-Image HyperFlex Edge Nodes with Intersight
+# Re-Image HyperFlex Edge Nodes
 ##############################
 
 
@@ -876,6 +892,10 @@ if cluster_type in ("3"):
 # Clean Up Intersight
 ##############################
 
+if cluster_type in ("1","3"):
+
+    cluster_profile = get_intersight_cluster_profile(api_instance, intersight_cluster_name):
+    intersight_cluster_profile_unassign_nodes(api_instance, cluster_profile)
 
 
 

@@ -331,7 +331,7 @@ def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
 
 
 def cimc_power_action(cimc_handle, action):
-    mo=cimc_handle.query_dn('sys/rack-unit-1')
+    mo = cimc_handle.query_dn('sys/rack-unit-1')
     if action == "off":
         mo.admin_power = 'down'
     elif action == "shutdown":
@@ -339,6 +339,12 @@ def cimc_power_action(cimc_handle, action):
     elif action == "on":
         mo.admin_power = 'up'
     cimc_handle.set_mo(mo)
+
+
+def get_cimc_power_state(cimc_handle):
+    mo = cimc_handle.query_dn('sys/rack-unit-1')
+    power_state = mo.oper_power
+    return power_state
 
 
 def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
@@ -378,7 +384,7 @@ def monitor_cimc_esxi_prompt(cimc_ip):
 
 
 def get_cimc_ip(cimc_handle):
-    mo=handle.query_dn('sys/rack-unit-1/mgmt/if-1')
+    mo=cimc_handle.query_dn('sys/rack-unit-1/mgmt/if-1')
     power_state = mo.ext_ip
     return power_state
 
@@ -799,6 +805,8 @@ if cluster_type in ("3"):
                 break
             else:
                 time.sleep(5)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes..."+Style.RESET_ALL)

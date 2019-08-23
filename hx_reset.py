@@ -331,14 +331,14 @@ def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
 
 
 def cimc_power_action(cimc_handle, action):
-    mo=handle.query_dn('sys/rack-unit-1')
+    mo=cimc_handle.query_dn('sys/rack-unit-1')
     if action == "off":
         mo.admin_power = 'down'
     elif action == "shutdown":
         mo.admin_power = 'soft-shut-down'
     elif action == "on":
         mo.admin_power = 'up'
-    handle.set_mo(mo)
+    cimc_handle.set_mo(mo)
 
 
 def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type):
@@ -592,11 +592,11 @@ print ("\n")
 ##############################
 
 
-print (Style.BRIGHT+Fore.GREEN+"TASK: Re-image HyperFlex Nodes"+Style.RESET_ALL)
-print ("\n")
-
-
 if cluster_type in ("1","2"):
+
+
+    print (Style.BRIGHT+Fore.GREEN+"TASK: Re-image HyperFlex Nodes"+Style.RESET_ALL)
+    print ("\n")
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to UCS Manager..."+Style.RESET_ALL)
@@ -773,12 +773,15 @@ if cluster_type in ("1","2"):
 
 if cluster_type in ("3"):
 
+    print (Style.BRIGHT+Fore.GREEN+"TASK: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
+    print ("\n")
+
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to CIMC interfaces of HyperFlex Edge nodes..."+Style.RESET_ALL)
     cimc_handle_list = []
     for cimc_ip in cimc_ip_list:
         print ("   <> Connected to CIMC IP: "+cimc_ip)
-        cimc_handle = cimc_connect(cimc_ip_address, cimc_user, cimc_password)
+        cimc_handle = cimc_connect(cimc_ip, cimc_user, cimc_pass)
         cimc_handle_list.append(cimc_handle)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
@@ -888,14 +891,35 @@ if cluster_type in ("3"):
     print ("\n")
 
 
+    print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
+    print ("\n")
+
+
 ##############################
 # Clean Up Intersight
 ##############################
 
 if cluster_type in ("1","3"):
 
-    cluster_profile = get_intersight_cluster_profile(api_instance, intersight_cluster_name):
+
+    print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config Intersight"+Style.RESET_ALL)
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Unassigning Nodes from HyperFlex Cluster Profile..."+Style.RESET_ALL)
+    cluster_profile = get_intersight_cluster_profile(api_instance, intersight_cluster_name)
     intersight_cluster_profile_unassign_nodes(api_instance, cluster_profile)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Deleteing HyperFlex Cluster Device from Intersight Device List..."+Style.RESET_ALL)
+    delete_intersight_device(api_instance, intersight_cluster_name)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
+
+print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
+print ("\n")
 
 
 

@@ -843,6 +843,8 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Creating vMedia Mount on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filename, cimc_vmedia_type)
+        cimc_ip = get_cimc_ip(cimc_handle)
+        print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", vMedia Mount Created: True")
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
@@ -850,6 +852,8 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Modifying Boot Policy on HyperFlex Edge nodes..."+Style.RESET_ALL)
     for cimc_handle in cimc_handle_list:
         set_cimc_boot_policy(cimc_handle)
+        cimc_ip = get_cimc_ip(cimc_handle)
+        print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Boot Policy Modified: True")
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 

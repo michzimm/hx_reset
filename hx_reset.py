@@ -279,7 +279,7 @@ def get_intersight_cluster_profile(api_instance, intersight_cluster_name):
     kwargs = dict(filter="Name eq '%s'" % intersight_cluster_name)
     hx_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
     intersight_cluster_profile = hx_profile_handle.hyperflex_cluster_profiles_get(**kwargs)
-    return intersight_cluster_profile.results
+    return intersight_cluster_profile.results[0]
 
 
 def get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name):
@@ -321,11 +321,11 @@ def delete_intersight_device(api_instance, intersight_cluster_name):
     kwargs = dict(filter="DeviceHostname eq '%s'" and "PlatformType eq HX" % intersight_cluster_name)
     asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
     asset_device_registration_moid = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results[0].moid
-    asset_device_registration_handle.asset_device_registrations_moid_delete(self, asset_device_registration_moid)
+    asset_device_registration_handle.asset_device_registrations_moid_delete(asset_device_registration_moid)
 
 
-def cimc_connect(cimc_ip_address, cimc_user, cimc_password):
-    cimc_handle = ImcHandle(cimc_ip_address, cimc_user, cimc_password)
+def cimc_connect(cimc_ip_address, cimc_user, cimc_pass):
+    cimc_handle = ImcHandle(cimc_ip_address, cimc_user, cimc_pass)
     cimc_handle.login()
     return cimc_handle
 
@@ -358,6 +358,12 @@ def create_cimc_vmedia_mount(cimc_handle, cimc_vmedia_share, cimc_vmedia_filenam
     cimc_handle.add_mo(lsboot_vmedia_policy)
 
 
+def delete_cimc_vmedia_mount(cimc_handle):
+    lsboot_vmedia_policy = cimc_handle.query_dn('sys/svc-ext/vmedia-svc/vmmap-hxesxi')
+    cimc_handle.remove_mo(lsboot_vmedia_policy)
+
+
+
 def set_cimc_boot_policy(cimc_handle):
     lsboot_vmedia_boot_order = LsbootVirtualMedia(parent_mo_or_dn='sys/rack-unit-1/boot-policy',type='virtual-media',order='1',access='read-only')
     cimc_handle.add_mo(lsboot_vmedia_boot_order)
@@ -368,7 +374,7 @@ def set_cimc_boot_policy(cimc_handle):
 def monitor_cimc_esxi_prompt(cimc_ip):
     ssh_newkey = "Are you sure you want to continue connecting"
     cmd = "ssh -l %s %s -oKexAlgorithms=diffie-hellman-group1-sha1,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" % (cimc_user, cimc_ip)
-    kvm_session = pexpect.spawn(cmd, timeout=60)
+    kvm_session = pexpect.spawn(cmd, timeout=600)
     kvm_session.timeout=600
     i = kvm_session.expect([ssh_newkey, '[Pp]assword:'])
     if i == 0:
@@ -380,8 +386,9 @@ def monitor_cimc_esxi_prompt(cimc_ip):
     kvm_session.sendline("connect host")
     kvm_session.expect("Connection to Exit|Exit the session")
     kvm_session.sendcontrol('d')
-    time.sleep(2)
+    time.sleep(10)
     kvm_session.expect("login:")
+    time.sleep(10)
     kvm_session.sendline("root")
     kvm_session.expect("[Pp]assword:")
     kvm_session.sendline("Cisco123")
@@ -817,9 +824,9 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Connecting to CIMC interfaces of HyperFlex Edge nodes..."+Style.RESET_ALL)
     cimc_handle_list = []
     for cimc_ip in cimc_ip_list:
-        print ("   <> Connected to CIMC IP: "+cimc_ip)
         cimc_handle = cimc_connect(cimc_ip, cimc_user, cimc_pass)
         cimc_handle_list.append(cimc_handle)
+        print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", Connected: True")
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
@@ -882,7 +889,7 @@ if cluster_type in ("3"):
 
 
     print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Going to sleep while HyperFlex nodes are re-imaged, this can take ~25-30 minutes due to multiple required reboots during install..."+Style.RESET_ALL)
-    for i in xrange(500,0,-1):
+    for i in xrange(600,0,-1):
         sys.stdout.write(str('.'))
         sys.stdout.flush()
         time.sleep(3)
@@ -898,7 +905,7 @@ if cluster_type in ("3"):
     cimc_handle_list = []
     for cimc_ip in cimc_ip_list:
         print ("   <> Connected to CIMC IP: "+cimc_ip)
-        cimc_handle = cimc_connect(cimc_ip, cimc_user, cimc_password)
+        cimc_handle = cimc_connect(cimc_ip, cimc_user, cimc_pass)
         cimc_handle_list.append(cimc_handle)
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
@@ -929,7 +936,14 @@ if cluster_type in ("3"):
                 break
             else:
                 time.sleep(5)
+    print ("      "+u'\U0001F44D'+" Done.")
+    print ("\n")
 
+
+    print (Style.BRIGHT+Fore.CYAN+"-->"+Fore.WHITE+" Deleting vMedia Mount on HyperFlex Edge nodes..."+Style.RESET_ALL)
+    for cimc_handle in cimc_handle_list:
+        delete_cimc_vmedia_mount(cimc_handle)
+        print ("   <> Item: HyperFlex Edge Node CIMC: "+cimc_ip+", vMedia Mount Deleted: True")
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 

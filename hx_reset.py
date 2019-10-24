@@ -314,7 +314,7 @@ def intersight_cluster_profile_unassign_nodes(api_instance, cluster_profile):
         'NodeProfileconfig':[]
         }
     hx_cluster_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
-    api_response = hx_cluster_profile_handle.hyperflex_cluster_profiles_moid_post(self, cluster_profile_moid, cluster_profile_body)
+    api_response = hx_cluster_profile_handle.hyperflex_cluster_profiles_moid_patch(cluster_profile_moid, cluster_profile_body)
 
 
 def delete_intersight_device(api_instance, intersight_cluster_name):
@@ -814,7 +814,7 @@ if cluster_type in ("1","2"):
 # Re-Image HyperFlex Edge Nodes
 ##############################
 
-
+"""
 if cluster_type in ("3"):
 
     print (Style.BRIGHT+Fore.GREEN+"TASK: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
@@ -951,7 +951,7 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
     print ("\n")
 
-
+"""
 ##############################
 # Clean Up Intersight
 ##############################

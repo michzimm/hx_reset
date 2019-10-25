@@ -16,13 +16,6 @@ import json
 from colorama import Fore, Back, Style
 from IPy import IP
 
-from ucsmsdk.ucshandle import UcsHandle
-from ucsmsdk.mometa.lsboot.LsbootPolicy import LsbootPolicy
-from ucsmsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
-from ucsmsdk.mometa.lsboot.LsbootEmbeddedLocalDiskImage import LsbootEmbeddedLocalDiskImage
-from ucsmsdk.mometa.lsboot.LsbootUsbFlashStorageImage import LsbootUsbFlashStorageImage
-from ucsmsdk.mometa.ls.LsPower import LsPower
-
 from pyVim import connect
 from pyVmomi import vim
 
@@ -33,12 +26,6 @@ from intersight.apis import hyperflex_cluster_profile_api
 from intersight.apis import hyperflex_node_profile_api
 from intersight.apis import compute_rack_unit_api
 from intersight.apis import asset_device_registration_api
-
-from imcsdk.imchandle import ImcHandle
-from imcsdk.mometa.comm.CommVMediaMap import CommVMediaMap
-from imcsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
-from imcsdk.mometa.lsboot.LsbootStorage import LsbootStorage
-from imcsdk.mometa.compute.ComputeRackUnit import ComputeRackUnit
 
 
 
@@ -406,6 +393,29 @@ def cimc_disconnect(cimc_handle):
     cimc_handle.logout()
 
 
+def cimc_confirm_esxi_install(cimc_ip):
+    ssh_newkey = "Are you sure you want to continue connecting"
+    cmd = "ssh -l %s %s -oKexAlgorithms=diffie-hellman-group1-sha1,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" % (cimc_user, cimc_ip)
+    kvm_session = pexpect.spawn(cmd, timeout=600)
+    kvm_session.timeout=600
+    i = kvm_session.expect([ssh_newkey, '[Pp]assword:'])
+    if i == 0:
+        kvm_session.sendline("yes")
+        kvm_session.expect("[Pp]assword:")
+    time.sleep(5)
+    kvm_session.sendline(cimc_pass)
+    kvm_session.expect("#")
+    kvm_session.sendline("connect host")
+    kvm_session.expect("Connection to Exit|Exit the session")
+    kvm_session.sendcontrol('d')
+    time.sleep(10)
+    kvm_session.expect("Select an Install Option")
+    kvm_session.sendline()
+    kvm_session.expect("Enter ERASE \(all CAPS\) and hit ENTER")
+    kvm_session.sendline("ERASE")
+    print ("   <> Successfully confirm ESXi install on CIMC: "+cimc_ip)
+
+
 
 ##################
 # MAIN ###########
@@ -443,6 +453,13 @@ print ("\n")
 
 
 if cluster_type in ("1","2"):
+
+    from ucsmsdk.ucshandle import UcsHandle
+    from ucsmsdk.mometa.lsboot.LsbootPolicy import LsbootPolicy
+    from ucsmsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
+    from ucsmsdk.mometa.lsboot.LsbootEmbeddedLocalDiskImage import LsbootEmbeddedLocalDiskImage
+    from ucsmsdk.mometa.lsboot.LsbootUsbFlashStorageImage import LsbootUsbFlashStorageImage
+    from ucsmsdk.mometa.ls.LsPower import LsPower
 
     print (Style.BRIGHT+Fore.CYAN+"Gathering UCS Details..."+Style.RESET_ALL)
     print ("\n")
@@ -489,6 +506,7 @@ if cluster_type in ("1","2"):
 
 if cluster_type in ("1","3"):
 
+
     print (Style.BRIGHT+Fore.CYAN+"Gathering Intersight API Details..."+Style.RESET_ALL)
     print ("\n")
 
@@ -520,6 +538,13 @@ if cluster_type in ("1","3"):
 
 
 if cluster_type in ("3","4"):
+
+
+    from imcsdk.imchandle import ImcHandle
+    from imcsdk.mometa.comm.CommVMediaMap import CommVMediaMap
+    from imcsdk.mometa.lsboot.LsbootVirtualMedia import LsbootVirtualMedia
+    from imcsdk.mometa.lsboot.LsbootStorage import LsbootStorage
+    from imcsdk.mometa.compute.ComputeRackUnit import ComputeRackUnit
 
     print (Style.BRIGHT+Fore.CYAN+"Gathering CIMC Details..."+Style.RESET_ALL)
     print ("\n")
@@ -591,7 +616,7 @@ if cluster_type in ("3","4"):
 # Gather vCenter  Details
 ##############################
 
-
+'''
 print (Style.BRIGHT+Fore.CYAN+"Gathering vCenter Details..."+Style.RESET_ALL)
 print ("\n")
 
@@ -808,14 +833,14 @@ if cluster_type in ("1","2"):
 
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
     print ("\n")
-
+'''
 
 ##############################
 # Re-Image HyperFlex Edge Nodes
 ##############################
 
-"""
-if cluster_type in ("3"):
+
+if cluster_type in ("3","4"):
 
     print (Style.BRIGHT+Fore.GREEN+"TASK: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
     print ("\n")
@@ -951,7 +976,7 @@ if cluster_type in ("3"):
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Re-Image HyperFlex Edge Nodes"+Style.RESET_ALL)
     print ("\n")
 
-"""
+
 ##############################
 # Clean Up Intersight
 ##############################
@@ -959,7 +984,7 @@ if cluster_type in ("3"):
 if cluster_type in ("1","3"):
 
 
-    print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config Intersight"+Style.RESET_ALL)
+    print (Style.BRIGHT+Fore.GREEN+"TASK: Clean-up HyperFlex Config in Intersight"+Style.RESET_ALL)
     print ("\n")
 
 
@@ -975,10 +1000,10 @@ if cluster_type in ("1","3"):
     print ("      "+u'\U0001F44D'+" Done.")
     print ("\n")
 
-print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
-print ("\n")
+    print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in Intersight"+Style.RESET_ALL)
+    print ("\n")
 
-
+'''
 
 ##############################
 # Clean Up vCenter Config
@@ -1016,6 +1041,8 @@ print ("\n")
 print (Style.BRIGHT+Fore.GREEN+"TASK 4 COMPLETED: Clean-up HyperFlex Config in vCenter"+Style.RESET_ALL)
 print ("\n")
 
+
+'''
 
 print (Style.BRIGHT+Fore.GREEN+"HyperFlex Reset Completed!!!"+Style.RESET_ALL)
 print ("\n")

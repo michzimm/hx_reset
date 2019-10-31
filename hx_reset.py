@@ -1,5 +1,26 @@
 #!/usr/bin/env python
 
+"""
+HyperFlex Clean-Up (Reset) Script
+Author: Michael Zimmerman
+Contributors: Matthew Garrett
+Email: mzcisco01@gmail.com
+
+Copyright (c) 2018 Cisco and/or its affiliates.
+This software is licensed to you under the terms of the Cisco Sample
+Code License, Version 1.0 (the "License"). You may obtain a copy of the
+License at:
+
+             https://developer.cisco.com/docs/licenses
+
+All use of the material herein must be in accordance with the terms of
+the License. All rights not expressly granted by the License are
+reserved. Unless required by applicable law or agreed to separately in
+writing, software distributed under the License is distributed on an "AS
+IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+or implied.
+"""
+
 ##################
 # Packages #######
 ##################
@@ -236,17 +257,29 @@ def intersight_connect(intersight_api_file):
     with open(intersight_api_file, 'r') as api_file:
         intersight_api_params = json.load(api_file)
 
-    # create an instance of the API class
-    api_instance = IntersightApiClient(
-        host=intersight_api_params['api_base_uri'],
-        private_key=intersight_api_params['api_private_key_file'],
-        api_key_id=intersight_api_params['api_key_id'],
-        )
-    hx_profiles_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
+    private_key=intersight_api_params['api_private_key_file']
+    api_key_id=intersight_api_params['api_key_id']
+
+    intersight_handle = isREST
+    intersight_handle.set_private_key(open(private_key, "r") .read())
+    intersight_handle.set_public_key(api_key_id.rstrip())
+
+    resource_path = '/ntp/Profiles'
+    query_params = {}
+
+    options = {
+        "http_method":"get",
+        "resource_path":resource_path,
+        "query_params":query_params
+    }
+
     try:
-        api_response = hx_profiles_handle.hyperflex_cluster_profiles_get()
-        return api_instance
-    except ApiException:
+        results = object.intersight_call(**options)
+        if results.status_code == "200":
+            return intersight_handle
+        else:
+            throw Exception
+    except:
         print (Fore.RED+"There was a problem connecting to Intersight. Check internet connectivity and the API key file and then try again."+Style.RESET_ALL)
         print ("\n")
         sys.exit()
@@ -298,14 +331,14 @@ def get_device_ip_list_by_cluster_name(api_instance, intersight_cluster_name):
 def intersight_cluster_profile_unassign_nodes(api_instance, cluster_profile):
     cluster_profile_moid = cluster_profile.moid
     cluster_profile_body = {
-        'NodeProfileconfig':[]
+        'Action':'Unassign'
         }
     hx_cluster_profile_handle = hyperflex_cluster_profile_api.HyperflexClusterProfileApi(api_instance)
-    api_response = hx_cluster_profile_handle.hyperflex_cluster_profiles_moid_patch(cluster_profile_moid, cluster_profile_body)
+    hx_cluster_profile_handle.hyperflex_cluster_profiles_moid_patch(cluster_profile_moid, cluster_profile_body)
 
 
 def delete_intersight_device(api_instance, intersight_cluster_name):
-    kwargs = dict(filter="DeviceHostname eq '%s'" and "PlatformType eq HX" % intersight_cluster_name)
+    kwargs = dict(filter="DeviceHostname eq '%s' and PlatformType eq HX" % intersight_cluster_name)
     asset_device_registration_handle = asset_device_registration_api.AssetDeviceRegistrationApi(api_instance)
     asset_device_registration_moid = asset_device_registration_handle.asset_device_registrations_get(**kwargs).results[0].moid
     asset_device_registration_handle.asset_device_registrations_moid_delete(asset_device_registration_moid)
@@ -391,29 +424,6 @@ def get_cimc_ip(cimc_handle):
 
 def cimc_disconnect(cimc_handle):
     cimc_handle.logout()
-
-
-def cimc_confirm_esxi_install(cimc_ip):
-    ssh_newkey = "Are you sure you want to continue connecting"
-    cmd = "ssh -l %s %s -oKexAlgorithms=diffie-hellman-group1-sha1,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" % (cimc_user, cimc_ip)
-    kvm_session = pexpect.spawn(cmd, timeout=600)
-    kvm_session.timeout=600
-    i = kvm_session.expect([ssh_newkey, '[Pp]assword:'])
-    if i == 0:
-        kvm_session.sendline("yes")
-        kvm_session.expect("[Pp]assword:")
-    time.sleep(5)
-    kvm_session.sendline(cimc_pass)
-    kvm_session.expect("#")
-    kvm_session.sendline("connect host")
-    kvm_session.expect("Connection to Exit|Exit the session")
-    kvm_session.sendcontrol('d')
-    time.sleep(10)
-    kvm_session.expect("Select an Install Option")
-    kvm_session.sendline()
-    kvm_session.expect("Enter ERASE \(all CAPS\) and hit ENTER")
-    kvm_session.sendline("ERASE")
-    print ("   <> Successfully confirm ESXi install on CIMC: "+cimc_ip)
 
 
 
@@ -616,7 +626,7 @@ if cluster_type in ("3","4"):
 # Gather vCenter  Details
 ##############################
 
-'''
+
 print (Style.BRIGHT+Fore.CYAN+"Gathering vCenter Details..."+Style.RESET_ALL)
 print ("\n")
 
@@ -833,7 +843,7 @@ if cluster_type in ("1","2"):
 
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in UCS Manager"+Style.RESET_ALL)
     print ("\n")
-'''
+
 
 ##############################
 # Re-Image HyperFlex Edge Nodes
@@ -1003,7 +1013,7 @@ if cluster_type in ("1","3"):
     print (Style.BRIGHT+Fore.GREEN+"TASK COMPLETED: Clean-up HyperFlex Config in Intersight"+Style.RESET_ALL)
     print ("\n")
 
-'''
+
 
 ##############################
 # Clean Up vCenter Config
@@ -1041,8 +1051,6 @@ print ("\n")
 print (Style.BRIGHT+Fore.GREEN+"TASK 4 COMPLETED: Clean-up HyperFlex Config in vCenter"+Style.RESET_ALL)
 print ("\n")
 
-
-'''
 
 print (Style.BRIGHT+Fore.GREEN+"HyperFlex Reset Completed!!!"+Style.RESET_ALL)
 print ("\n")
